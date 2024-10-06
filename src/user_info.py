@@ -4,6 +4,7 @@ class User(object):
         self.messages_to_send = []
         self.password = password
         self.friends = {}
+        self.isOnline = False
         
         
     def add_friend(self, friend):
@@ -14,4 +15,3 @@ class User(object):
         self.friends[friend.name].pop()
         print("Friend removed: ", friend.name)
         
-    
