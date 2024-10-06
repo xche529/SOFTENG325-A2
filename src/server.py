@@ -2,6 +2,7 @@ import socket
 import threading
 from utils import *
 from user_info import User
+import pickle
 
 
 
@@ -13,49 +14,73 @@ class Server(object):
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((SERVER_HOST, port))
-        self.user_map = {}
+        self.server.settimeout(1)
+        self.running_thread = []
+        self.running = False
+        try:
+            self.user_map = pickle.load(open("user_map.pickle", "rb"))
+        except FileNotFoundError:
+            self.user_map = {}
+        print(self.user_map.values())
         print("Server initlised, listening on port ", port)
         
     def stop(self):
+        self.running = False
+        for thread in self.running_thread:
+            thread.join()
         self.server.close()
+        pickle.dump(self.user_map, open("user_map.pickle", "wb"))
         print("Server stopped")
 
     def handle_client(self, client, address):
         print("Client connected: ", address)
         connected = True
-        while connected:
+        while connected and self.running:
             message = recieve_message(client)
             if message:
+                print('\n')
                 print(f"[{address}]: {message}")
-                if message == "exit":
+                print('\n')
+                if message == "!exit":
                     connected = False
                     print("Client disconnected: ", address)
                     
-                elif message == "login":
-                    login_message = recieve_message(client)
-                    is_success, message = self.login_user(login_message)
-                    print(message)
-                    send_message(client, message)
-
-                elif message == "register":
-                    register_message = recieve_message(client)
-                    is_success, message = self.register_user(register_message)
-                    print(message)
-                    send_message(client, message)
-                    
+                elif message == "!login":
+                    self.handle_login(client, message)
+                elif message == "!register":
+                    self.handle_register(client, message)            
                 else:
-                    user = self.check_user_exists(message)
-                    if user:
-                        if user.isOnline:
-                            print("User is online")
-                        else:
-                            print("User is offline")
-                    else:
-                        print("User does not exist")
+                    self.handle_select_user(client, message)
             else:
-                connected = False
-                print("Client disconnected: ", address)
-                    
+                continue
+        client.close()
+        print("Client connection closed: ", address)
+        
+    def handle_login(self, client, message):
+        login_message = recieve_message(client)
+        is_success, message = self.login_user(login_message)
+        print(message)
+        result_message = str(is_success) + "#" + message
+        send_message(client, result_message)
+
+        
+    def handle_register(self, client, message):
+        register_message = recieve_message(client)
+        is_success, message = self.register_user(register_message)
+        print(message)
+        result_message = str(is_success) + "#" + message
+        send_message(client, result_message)
+        
+    def handle_select_user(self, client, message):
+        user = self.check_user_exists(message)
+        if user:
+            if user.isOnline:
+                print("User is online")
+            else:
+                print("User is offline")
+        else:
+            print("User does not exist")
+
     def check_user_password(self, user, password):
         if user.password == password:
             return True
@@ -98,14 +123,23 @@ class Server(object):
         
         
     def run(self):
+        self.running = True
         self.server.listen(5)
-        while True:
-            client, address = self.server.accept()
-            thread = threading.Thread(target=self.handle_client, args=(client, address))
-            thread.start()
+        while self.running:
+            try:
+                client, address = self.server.accept()
+                thread = threading.Thread(target=self.handle_client, args=(client, address))
+                self.running_thread.append(thread)
+                thread.start()
+            except socket.timeout:
+                continue
 
 
 if __name__ == '__main__':
     port = int(input("Enter port number: "))
     server = Server(port)
-    server.run()
+    try:
+        server.run()
+    except KeyboardInterrupt:
+        print("Server stopping...")
+        server.stop()
