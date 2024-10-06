@@ -1,5 +1,6 @@
 import socket
 import threading
+from utils import *
 from user_info import User
 
 
@@ -14,8 +15,7 @@ class Server(object):
         self.server.bind((SERVER_HOST, port))
         self.user_map = {}
         print("Server initlised, listening on port ", port)
-
-
+        
     def stop(self):
         self.server.close()
         print("Server stopped")
@@ -24,18 +24,37 @@ class Server(object):
         print("Client connected: ", address)
         connected = True
         while connected:
-            message_len = client.recv(1024).decode(FORMAT)
-            if message_len:
-                message_len = int(message_len)
-                message = client.recv(message_len).decode(FORMAT)
+            message = recieve_message(client)
+            if message:
                 print(f"[{address}]: {message}")
                 if message == "exit":
                     connected = False
-                if message == "login":
-                    self.login(client, address)
-                elif message == "register":
-                    self.register(client, address)
+                    print("Client disconnected: ", address)
                     
+                elif message == "login":
+                    login_message = recieve_message(client)
+                    is_success, message = self.login_user(login_message)
+                    print(message)
+                    send_message(client, message)
+
+                elif message == "register":
+                    register_message = recieve_message(client)
+                    is_success, message = self.register_user(register_message)
+                    print(message)
+                    send_message(client, message)
+                    
+                else:
+                    user = self.check_user_exists(message)
+                    if user:
+                        if user.isOnline:
+                            print("User is online")
+                        else:
+                            print("User is offline")
+                    else:
+                        print("User does not exist")
+            else:
+                connected = False
+                print("Client disconnected: ", address)
                     
     def check_user_password(self, user, password):
         if user.password == password:
@@ -48,31 +67,34 @@ class Server(object):
             return self.user_map[name]
         return False
                     
-    def add_user(self, message):
+    def register_user(self, message):
+        register_success = False
+        error_message = ''
         [name, password] = message.split(" ")
         if not self.check_user_exists(name):
             user = User(name, password)
             self.user_map[user.name] = user
-            print("User added: ", user.name)
-            return True
+            register_success = True
+            error_message = "User added: " + user.name
         else:
-            print("User already exists")
-            return False
+            error_message = "User already exists"
+        return register_success, error_message
 
     def login_user(self, message):
+        login_success = False
+        error_message = ''
         [name, password] = message.split(" ")
         user = self.check_user_exists(name)
         if user:
             if self.check_user_password(user, password):
                 user.isOnline = True
-                print("User logged in: ", user.name)
-                return True
+                login_success = True
+                error_message = "User login success: " + user.name
             else:
-                print("Invalid password")
-                return False
+                error_message = "Invalid password"
         else:
-            print("User does not exist")
-            return False
+            error_message = "User does not exist"
+        return login_success, error_message
         
         
     def run(self):
