@@ -77,11 +77,16 @@ class Client(object):
             message = recieve_message(self.client)
     
     def select_user(self):
-        name = input("Please enter the name of the user you would like to message or l to logout: ")
+        print("Enter list to see all avaliable users")
+        print("Enter l to logout")
+        name = input("Enter the name of the user you would like to message: ")
+        
         if name == "l":
             send_message(self.client, "!logout")
             self.logged_in = False
             return
+        elif name == "list":
+            name = "!list"
         name = name.strip()
         send_message(self.client, "!select")
         send_message(self.client, name)

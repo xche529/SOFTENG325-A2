@@ -34,6 +34,7 @@ class Server(object):
         self.server.close()
         for thread in self.running_thread:
             thread.join()
+        self.remove_socket_from_usermap()
         pickle.dump(self.user_map, open("user_map.pickle", "wb"))
         print("Server stopped")
 
@@ -130,6 +131,8 @@ class Server(object):
                 send_message(client, result_message)
                 self.handle_chatbot_session(user)
                 return
+            if message == "!list":
+                message = self.return_users_string()
             else:
                 message = "User does not exist"
         result_message = str(is_success) + "#" + message
@@ -243,6 +246,17 @@ class Server(object):
                 thread.start()
             except socket.timeout:
                 continue
+    
+    def remove_socket_from_usermap(self):
+        for user in self.user_map:
+            self.user_map[user].client = None
+        print("All users disconnected")
+        
+    def return_users_string(self):
+        result = "Avaliable users: \n"
+        for user in self.user_map:
+            result += user + "\n"
+        return result
 
 
 if __name__ == '__main__':
