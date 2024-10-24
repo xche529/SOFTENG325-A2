@@ -19,6 +19,12 @@ class User(object):
     def add_message(self, message):
         self.messages_to_send.append(message)
         
+    def get_message(self):
+        if len(self.messages_to_send) == 0:
+            return False
+        else:
+            return self.messages_to_send.pop(0)
+        
     def build_message(self, message):
         return self.name + ": " + message
     

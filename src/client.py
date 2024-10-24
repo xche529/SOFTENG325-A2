@@ -1,10 +1,14 @@
 import socket
+import ssl
 import threading
 from utils import *
 
 class Client(object):
     def __init__(self, host, port):
+        self.context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        self.context.set_ciphers('AES128-SHA')
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client = self.context.wrap_socket(self.client, server_hostname=host)
         self.client.connect((host, port))
         self.connected = False
         self.logged_in = False
@@ -26,7 +30,7 @@ class Client(object):
         listen_thread = threading.Thread(target=self.listen_for_messages)
         listen_thread.start()
         while self.connected:
-            message = input("Enter message: ")
+            message = input("")
             if message == "!disconnect":
                 send_message(message)
                 self.close()
@@ -47,7 +51,8 @@ class Client(object):
                 password = input("Please enter your password: ")
                 message = "!login"
                 is_success = self.handle_auth_opeartion(message, name, password)
-                if is_success:
+                print("is_success: ", is_success)
+                if is_success: 
                     self.logged_in = True
                     while self.logged_in:
                         self.select_user()
@@ -61,7 +66,7 @@ class Client(object):
         send_message(self.client,message)
         result = recieve_message(self.client)
         [is_success, message] = result.split("#")
-        is_success = bool(is_success)
+        is_success = (is_success == "True")
         print(message)
         return is_success
     
@@ -75,6 +80,7 @@ class Client(object):
         send_message(self.client, "!select")
         send_message(self.client, name)
         result = recieve_message(self.client)
+        print(result)
         [is_success, message] = result.split("#")
         is_success = bool(is_success)
         print(message)
@@ -84,8 +90,9 @@ class Client(object):
             
 if __name__ == '__main__':
     try:
-        port = int(input("Enter port: "))
-        client = Client('localhost', port)
+        port = int(input("Please enter the port number: "))
+        host = "localhost"
+        client = Client(host, port)
         client.welcome()
         client.close()
     except KeyboardInterrupt:

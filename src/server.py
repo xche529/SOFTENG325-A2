@@ -1,37 +1,45 @@
 import socket
+import ssl
 import threading
 from utils import *
 from user_info import User
 import pickle
+from chatbot import chatbot
 
-
-
-
-SERVER_HOST = 'localhost'
+SERVER_HOST = '0.0.0.0'
 FORMAT = 'utf-8'
 class Server(object):
     def __init__(self, port):
+        self.context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        self.context.load_cert_chain(certfile="cert.pem", keyfile="cert.pem")
+        self.context.load_verify_locations("cert.pem")
+        self.context.set_ciphers('AES128-SHA')
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((SERVER_HOST, port))
         self.server.settimeout(1)
+        self.server = self.context.wrap_socket(self.server, server_side=True)
         self.running_thread = []
         self.running = False
         try:
             self.user_map = pickle.load(open("user_map.pickle", "rb"))
-        except FileNotFoundError:
+        except Exception as e:
+            print("Error loading user map: ", e)
+            print("Creating new empty user map")
             self.user_map = {}
         print("Server initlised, listening on port ", port)
         
     def stop(self):
         self.running = False
         self.server.close()
+        for thread in self.running_thread:
+            thread.join()
         pickle.dump(self.user_map, open("user_map.pickle", "wb"))
         print("Server stopped")
 
     def handle_client(self, client, address):
         print("Client connected: ", address)
-        #client.settimeout(1)
+        client.settimeout(1)
         connected = True
         while connected and self.running:
             try:
@@ -69,6 +77,7 @@ class Server(object):
         if is_success:
             user.set_client(client)
             while user.isOnline and self.running:
+                client.settimeout(None)
                 message = recieve_message(client)
                 if message:
                     if message == "!logout":
@@ -112,7 +121,16 @@ class Server(object):
             else:
                 message = "User is offline, message will be sent when user is online"
         else:
-            message = "User does not exist"
+            if message == "chatbot":
+                is_success = True
+                message = "Chatbot session started"
+                
+                result_message = str(is_success) + "#" + message
+                send_message(client, result_message)
+                self.handle_chatbot_session(user)
+                return
+            else:
+                message = "User does not exist"
         result_message = str(is_success) + "#" + message
         send_message(client, result_message)
         if not is_success:
@@ -165,7 +183,7 @@ class Server(object):
         while user.isOnline and self.running:
             message = recieve_message(user.client)
             if message:
-                if message == "!logout":
+                if message == "!logout": 
                     self.handle_logout(user.name)
                 else:
                     self.handle_send_message(user, target_user, message)
@@ -185,7 +203,28 @@ class Server(object):
         # user.messages_to_send = []
         # return message_history
         pass
+    
+    def handle_chatbot_session(self, user):
+        print("Chatbot session started1")
+        chatbot_session = chatbot()
+        print("Chatbot session started")
+        botuser = User("chatbot", 0000)
+        while user.isOnline and self.running:
+            message = recieve_message(user.client)
+            if message:
+                if message == "!logout": 
+                    self.handle_logout(user.name)
+                else:
+                    response = self.handle_chatbot_message_request(chatbot_session, message)
+                    self.handle_send_message(botuser, user, response)
                     
+
+    def handle_chatbot_message_request(self, chatbot, message):
+        try:
+            response = chatbot.get_response(message)
+        except Exception as e:
+            response = "Chatbot error: " + str(e)
+        return response
             
     def run(self):
         self.running = True
