@@ -51,9 +51,9 @@ class Client(object):
                 password = input("Please enter your password: ")
                 message = "!login"
                 is_success = self.handle_auth_opeartion(message, name, password)
-                print("is_success: ", is_success)
                 if is_success: 
                     self.logged_in = True
+                    self.recieve_message_history()
                     while self.logged_in:
                         self.select_user()
             else:
@@ -70,6 +70,12 @@ class Client(object):
         print(message)
         return is_success
     
+    def recieve_message_history(self):
+        message = recieve_message(self.client)
+        while message != "!end":
+            print(message)
+            message = recieve_message(self.client)
+    
     def select_user(self):
         name = input("Please enter the name of the user you would like to message or l to logout: ")
         if name == "l":
@@ -80,9 +86,8 @@ class Client(object):
         send_message(self.client, "!select")
         send_message(self.client, name)
         result = recieve_message(self.client)
-        print(result)
         [is_success, message] = result.split("#")
-        is_success = bool(is_success)
+        is_success = (is_success == "True")
         print(message)
         if is_success:
             self.start_chat()

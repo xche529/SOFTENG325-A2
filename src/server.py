@@ -76,6 +76,7 @@ class Server(object):
         send_message(client, result_message)
         if is_success:
             user.set_client(client)
+            self.handle_get_message_history(user)
             while user.isOnline and self.running:
                 client.settimeout(None)
                 message = recieve_message(client)
@@ -199,10 +200,15 @@ class Server(object):
             print("Message added to queue: ", message)
             
     def handle_get_message_history(self, user):
-        # message_history = user.messages_to_send
-        # user.messages_to_send = []
-        # return message_history
-        pass
+        message_record = user.get_message()
+        if message_record:
+            initial_message = "New Messages: "
+            send_message(user.client, initial_message)
+            while message_record:
+                send_message(user.client, message_record)
+                message_record = user.get_message()
+        
+        send_message(user.client, "!end")
     
     def handle_chatbot_session(self, user):
         print("Chatbot session started1")
