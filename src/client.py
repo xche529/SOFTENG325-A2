@@ -5,6 +5,7 @@ from utils import *
 
 class Client(object):
     def __init__(self, host, port):
+        # Create a socket object and connect to the server
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         self.context.set_ciphers('AES128-SHA')
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -19,14 +20,17 @@ class Client(object):
         self.client.close()
         print("Client disconnected from server")
         
+    #listens for messages from the server and prints to the console
     def listen_for_messages(self):
         while self.connected:
             message = recieve_message(self.client)
             if message:  
                 print('\n')
                 print(message)
-        
+    
+    # start a chat session with the server
     def start_chat(self):
+        # start a thread to listen for messages from the server
         listen_thread = threading.Thread(target=self.listen_for_messages)
         listen_thread.start()
         while self.connected:
@@ -36,6 +40,7 @@ class Client(object):
                 self.close()
             send_message(self.client, message)
             
+    # welcome logic for the user
     def welcome(self):
         self.connected = True
         while self.connected:
@@ -59,7 +64,8 @@ class Client(object):
             else:
                 print("Invalid command")
                 print('\n')
-                
+    
+    # handle the authentication operation with the server
     def handle_auth_opeartion(self, operation, name, password):
         send_message(self.client, operation)
         message = name + " " + password
@@ -70,12 +76,14 @@ class Client(object):
         print(message)
         return is_success
     
+    # recieve the message history from the server
     def recieve_message_history(self):
         message = recieve_message(self.client)
         while message != "!end":
             print(message)
             message = recieve_message(self.client)
     
+    # select a user to chat with
     def select_user(self):
         print("Enter list to see all avaliable users")
         print("Enter l to logout")
@@ -93,6 +101,7 @@ class Client(object):
         result = recieve_message(self.client)
         [is_success, message] = result.split("#")
         is_success = (is_success == "True")
+        # print the result from the server
         print(message)
         if is_success:
             self.start_chat()

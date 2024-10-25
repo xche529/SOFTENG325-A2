@@ -4,6 +4,7 @@ import threading
 from utils import *
 from user_info import User
 import pickle
+from chatbot import chatbot
 
 SERVER_HOST = '0.0.0.0'
 FORMAT = 'utf-8'
@@ -132,6 +133,14 @@ class Server(object):
             else:
                 message = "User is offline, message will be sent when user is online"
         else:
+            if message == "chatbot":
+                is_success = True
+                message = "Chatbot session started"
+                
+                result_message = str(is_success) + "#" + message
+                send_message(client, result_message)
+                self.handle_chatbot_session(user)
+                return
             if message == "!list":
                 message = self.return_users_string()
             else:
@@ -221,6 +230,29 @@ class Server(object):
         
         send_message(user.client, "!end")
     
+    # chatbot session
+    def handle_chatbot_session(self, user):
+        print("Chatbot session started1")
+        chatbot_session = chatbot()
+        print("Chatbot session started")
+        botuser = User("chatbot", 0000)
+        while user.isOnline and self.running:
+            message = recieve_message(user.client)
+            if message:
+                if message == "!logout": 
+                    self.handle_logout(user.name)
+                else:
+                    response = self.chatbot_message_request(chatbot_session, message)
+                    self.handle_send_message(botuser, user, response)
+                    
+    # handle chatbot message request
+    def chatbot_message_request(self, chatbot, message):
+        try:
+            response = chatbot.get_response(message)
+        except Exception as e:
+            response = "Chatbot error: " + str(e)
+        return response
+            
     # main server loop
     def run(self):
         self.running = True
