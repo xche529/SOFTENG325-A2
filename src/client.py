@@ -1,5 +1,6 @@
 import socket
 import ssl
+import sys
 import threading
 from utils import *
 
@@ -25,8 +26,16 @@ class Client(object):
         while self.connected:
             message = recieve_message(self.client)
             if message:  
-                print('\n')
+                # Clear the current input line
+                sys.stdout.write('\r' + ' ' * 80 + '\r')  # Adjust width to your console
+                sys.stdout.flush()
+                
+                # Print the received message
                 print(message)
+                
+                # Redisplay the input prompt
+                sys.stdout.write("me: ")
+                sys.stdout.flush()
     
     # start a chat session with the server
     def start_chat(self):
@@ -34,7 +43,7 @@ class Client(object):
         listen_thread = threading.Thread(target=self.listen_for_messages)
         listen_thread.start()
         while self.connected:
-            message = input("")
+            message = input("me: ")
             if message == "!disconnect":
                 send_message(message)
                 self.close()
